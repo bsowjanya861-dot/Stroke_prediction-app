@@ -1,5 +1,6 @@
 streamlit
-numpy
-opencv-python
-pillow
 xgboost
+scikit-learn
+numpy
+opencv-python-headless
+pillow
