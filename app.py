@@ -6,7 +6,7 @@ from xgboost import XGBClassifier
 
 st.set_page_config(page_title="Stroke Prediction", layout="centered")
 
-st.title("🧠 Hybrid XGBoost for Brain Stroke Prediction")
+st.title("Brain Stroke Prediction")
 
 model = XGBClassifier()
 model.load_model("hybrid_stroke_model.json")
