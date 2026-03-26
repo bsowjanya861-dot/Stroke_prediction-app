@@ -35,9 +35,16 @@ if file is not None:
 
         pred = model.predict(features)
 
-        if pred == 0:
-            st.error("⚠️ Hemorrhagic Stroke Detected")
-        elif pred ==1:
-            st.success("✅ Ischaemic Stroke Detected")
+        if pred[0] == 0:
+            result = "Hemorrhagic Stroke"
+        elif pred[0] == 1:
+            result = "Ischemic Stroke"
         else:
-            st.success("Unknown")
+            result = "No Stroke / Invalid MRI"
+proba = model.predict_proba(features)
+confidence = np.max(proba)
+
+if confidence < 0.6:
+    st.error("Invalid image. Please upload a proper brain MRI scan.")
+else:
+    st.success(result)
