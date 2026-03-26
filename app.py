@@ -1,41 +1,52 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
 import cv2
-from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input
+from PIL import Image
 from xgboost import XGBClassifier
-import joblib  # to load saved XGBoost model
 
 st.set_page_config(page_title="Stroke Prediction", layout="centered")
-st.title("🧠 Hybrid CNN + XGBoost for Brain Stroke Prediction")
+st.title("🧠 Hybrid XGBoost for Brain Stroke Prediction")
 
-# Load pretrained CNN (MobileNetV2) as feature extractor
-cnn_model = MobileNetV2(weights="imagenet", include_top=False, pooling="avg")
+# Load your pretrained XGBoost model
+model = XGBClassifier()
+model.load_model("hybrid_stroke_model.json")
 
-# Load trained XGBoost classifier (trained on CNN features)
-xgb_model = joblib.load("hybrid_stroke_xgb.pkl")  # save your trained XGB as .pkl
-
+# File uploader
 file = st.file_uploader("Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
 if file is not None:
-    img = Image.open(file).convert("RGB")
-    st.image(img, caption="Uploaded MRI", use_container_width=True)
-
-    # Preprocess image for CNN
-    img_resized = img.resize((224, 224))
-    img_array = np.array(img_resized)
-    img_array = preprocess_input(img_array)
-    img_array = np.expand_dims(img_array, axis=0)
-
-    # Extract features using CNN
-    features = cnn_model.predict(img_array)
-
-    if st.button("Predict"):
-        # Predict using XGBoost on CNN features
-        pred = xgb_model.predict(features)
-        if pred[0] == 0:
-            st.error("⚠️ Hemorrhagic Stroke Detected")
-        elif pred[0]==1:
-            st.success("✅ Ischaemic Stroke Detected")
+    try:
+        # Open and convert image to RGB
+        img = Image.open(file).convert("RGB")
+        
+        # Basic validation: image too small might not be MRI
+        if img.size[0] < 50 or img.size[1] < 50:
+            st.warning("⚠️ Please upload a valid brain MRI image.")
         else:
-            st.success("Unknown")
+            st.image(img, caption="Uploaded Image", use_container_width=True)
+
+            # Resize to 64x64 (must match model training)
+            img = np.array(img)
+            img = cv2.resize(img, (64, 64))
+
+            # Normalize pixel values (0-255 → 0-1)
+            img = img / 255.0
+
+            # Extract features
+            pixel_features = img.flatten()
+            mean = np.mean(img)
+            std = np.std(img)
+            maxv = np.max(img)
+            minv = np.min(img)
+            features = np.hstack([pixel_features, mean, std, maxv, minv])
+            features = features.reshape(1, -1)
+
+            # Predict button
+            if st.button("Predict"):
+                pred = model.predict(features)
+                if pred[0] == 0:
+                    st.error("⚠️ Hemorrhagic Stroke Detected")
+                else:
+                    st.success("✅ Ischaemic Stroke Detected")
+    except:
+        st.warning("⚠️ Invalid image file. Please upload a JPG or PNG brain MRI image.")
