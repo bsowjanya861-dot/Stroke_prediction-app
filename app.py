@@ -39,3 +39,4 @@ if file is not None:
             result = "Ischemic Stroke"
         else:
             result = "No Stroke"
+        st.success(result)
