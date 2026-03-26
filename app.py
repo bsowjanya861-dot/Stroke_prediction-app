@@ -4,38 +4,37 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 
-st.set_page_config(page_title="Stroke Prediction", layout="centered")
-st.title("🧠 Hybrid XGBoost for Brain Stroke Prediction")
+st.set_page_config(page_title="CT Stroke Prediction", layout="centered")
+st.title("🧠 XGBoost Brain Stroke Prediction (CT Scan)")
 
-# Load your pretrained XGBoost model
+# Load the trained XGBoost model
 model = XGBClassifier()
 model.load_model("hybrid_stroke_model.json")
 
 # File uploader
-file = st.file_uploader("Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
+file = st.file_uploader("Upload CT Scan Image", type=["jpg", "png", "jpeg"])
 
 if file is not None:
     try:
-        # Open image
-        img = Image.open(file).convert("RGB")
-        st.image(img, caption="Uploaded Image", use_container_width=True)
+        # Open and convert image
+        img = Image.open(file).convert("L")  # grayscale CT
+        st.image(img, caption="Uploaded CT Scan", use_container_width=True)
 
-        # Resize to 64x64 (matches model training)
-        img = img.resize((64, 64))
-        img_array = np.array(img)
+        # Resize to 64x64 (matches training)
+        img_resized = np.array(img.resize((64, 64)))
 
         # Normalize pixel values
-        img_array = img_array / 255.0
+        img_normalized = img_resized / 255.0
 
         # Flatten + extra stats
-        pixel_features = img_array.flatten()
-        mean = np.mean(img_array)
-        std = np.std(img_array)
-        maxv = np.max(img_array)
-        minv = np.min(img_array)
+        pixel_features = img_normalized.flatten()
+        mean = np.mean(img_normalized)
+        std = np.std(img_normalized)
+        maxv = np.max(img_normalized)
+        minv = np.min(img_normalized)
         features = np.hstack([pixel_features, mean, std, maxv, minv]).reshape(1, -1)
 
-        # Predict button
+        # Predict
         if st.button("Predict"):
             pred = model.predict(features)
             if pred[0] == 0:
@@ -44,4 +43,4 @@ if file is not None:
                 st.success("✅ Ischaemic Stroke Detected")
 
     except Exception as e:
-        st.warning("⚠️ Invalid image. Please upload a brain MRI image only.")
+        st.warning("⚠️ Invalid image. Please upload a CT scan only.")
