@@ -34,8 +34,8 @@ if file is not None:
         pred = model.predict(features)
 
         if pred[0] == 0:
-            st.error("⚠️ Hemorrhagic Stroke Detected")
-        else:
-            st.success("✅ Ischaemic Stroke Detected")
+            result = "Hemorrhagic Stroke"
+        elif pred[0] == 1:
+            result = "Ischemic Stroke"
         else:
             result = "No Stroke"
