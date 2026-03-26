@@ -31,12 +31,19 @@ if file is not None:
     features = features.reshape(1, -1)
 
     if st.button("Predict"):
-        pred = model.predict(features)
-
-        if pred[0] == 0:
-            result = "Hemorrhagic Stroke"
-        elif pred[0] == 1:
-            result = "Ischemic Stroke"
+        proba = model.predict_proba(features)
+        confidence = np.max(proba)
+        pred = np.argmax(proba)
+        if confidence < 0.7:
+            st.error("❌ Invalid Image (Upload Brain MRI)")
         else:
-            result = "No Stroke"
-        st.success(result)
+            if pred == 0:
+                result = "Hemorrhagic Stroke"
+            elif pred == 1:
+                result = "Ischemic Stroke"
+            else:
+                result = "Unknown"
+            st.success(f"Prediction: {result}")
+            st.write(f"Confidence: {confidence*100:.2f}%")
+
+        
