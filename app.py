@@ -37,3 +37,5 @@ if file is not None:
             st.error("⚠️ Hemorrhagic Stroke Detected")
         else:
             st.success("✅ Ischaemic Stroke Detected")
+        else:
+            result = "No Stroke"
