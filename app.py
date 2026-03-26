@@ -37,7 +37,7 @@ if file is not None:
 
         if pred[0] == 0:
             st.error("⚠️ Hemorrhagic Stroke Detected")
-        else:
+        elif pred[1]==1:
             st.success("✅ Ischaemic Stroke Detected")
         else:
             st.success("Unknown")
