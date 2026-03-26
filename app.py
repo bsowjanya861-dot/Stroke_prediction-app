@@ -4,22 +4,22 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 
-st.set_page_config(page_title="Stroke Prediction", layout="centered")
-st.title("🧠 Hybrid XGBoost for Brain Stroke Prediction")
+st.set_page_config(page_title="CT Stroke Prediction", layout="centered")
+st.title("🧠 CT Stroke Type Prediction (Ischemic / Hemorrhagic)")
 
-# Load model
+# Load trained XGBoost model
 model = XGBClassifier()
 model.load_model("hybrid_stroke_model.json")  # Make sure this file is in the same folder
 
-# Upload image
-file = st.file_uploader("Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
+# Upload CT scan
+file = st.file_uploader("Upload CT scan image", type=["jpg", "png", "jpeg"])
 
 if file is not None:
-    # Open and display the image
+    # Open and display uploaded image
     img = Image.open(file).convert("RGB")
-    st.image(img, caption="Uploaded MRI", use_container_width=True)
+    st.image(img, caption="Uploaded CT Scan", use_column_width=True)
 
-    # Preprocess for model
+    # Preprocess image
     img_array = np.array(img)
     img_array = cv2.resize(img_array, (64, 64))
     pixel_features = img_array.flatten()
@@ -27,6 +27,7 @@ if file is not None:
     std = np.std(img_array)
     maxv = np.max(img_array)
     minv = np.min(img_array)
+
     features = np.hstack([pixel_features, mean, std, maxv, minv]).reshape(1, -1)
 
     if st.button("Predict"):
@@ -36,18 +37,17 @@ if file is not None:
         confidence = np.max(proba)
 
         if confidence < 0.6:
-            st.error("⚠️ Invalid image. Please upload a proper brain MRI scan.")
+            st.error("⚠️ Invalid image. Please upload a proper CT scan of the brain.")
         else:
-            # Map prediction to label and image path
+            # Map prediction to label and corresponding image
             stroke_map = {
-                0: ("Hemorrhagic Stroke", "images/hemorrhagic.jpg"),
-                1: ("Ischemic Stroke", "images/ischemic.jpg"),
-                2: ("No Stroke", "images/normal.jpg")
+                0: ("Hemorrhagic Stroke", "images/hemorrhagic_ct.jpg"),
+                1: ("Ischemic Stroke", "images/ischemic_ct.jpg")
             }
 
             result, image_path = stroke_map.get(pred[0], ("Unknown", None))
 
-            # Display result
+            # Display result text
             st.success(f"{result} (Confidence: {confidence*100:.2f}%)")
 
             # Display only the corresponding image
