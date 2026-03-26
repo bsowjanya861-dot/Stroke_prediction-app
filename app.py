@@ -11,7 +11,7 @@ st.set_page_config(page_title="Stroke Prediction", layout="centered")
 st.title("🧠 Brain Stroke Prediction")
 
 # -------------------------------
-# LOAD MODEL (CACHED)
+# LOAD MODEL (ONLY ONCE)
 # -------------------------------
 @st.cache_resource
 def load_model():
@@ -22,14 +22,25 @@ def load_model():
 model = load_model()
 
 # -------------------------------
-# MRI CHECK FUNCTION
+# STRONG MRI CHECK FUNCTION
 # -------------------------------
 def is_mri_image(img):
+    img = np.array(img)
+
+    # Convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    # Channel similarity check (MRI = grayscale)
+    b, g, r = cv2.split(img)
+    diff_rg = np.mean(np.abs(r - g))
+    diff_rb = np.mean(np.abs(r - b))
+    diff_gb = np.mean(np.abs(g - b))
+
+    # Texture variation
     std = np.std(gray)
 
-    # MRI images usually have lower variation than colorful images
-    if std < 50:
+    # FINAL CONDITION (combined check)
+    if (diff_rg < 10 and diff_rb < 10 and diff_gb < 10) and (std < 80):
         return True
     else:
         return False
@@ -41,12 +52,12 @@ file = st.file_uploader("Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
 if file is not None:
 
-    # Show image
-    img = Image.open(file).convert("RGB")
-    st.image(img, caption="Uploaded Image", use_container_width=True)
+    # Show uploaded image
+    img_pil = Image.open(file).convert("RGB")
+    st.image(img_pil, caption="Uploaded Image", use_container_width=True)
 
     # Convert to numpy
-    img = np.array(img)
+    img = np.array(img_pil)
 
     # -------------------------------
     # FEATURE EXTRACTION
@@ -68,18 +79,18 @@ if file is not None:
     # -------------------------------
     if st.button("Predict"):
 
-        # Step 1: Check MRI or not
+        # 🚨 STEP 1: MRI VALIDATION
         if not is_mri_image(img):
-            st.error("❌ This is NOT a Brain MRI image")
+            st.error("❌ This is NOT a Brain MRI image. Please upload correct scan.")
         
         else:
+            # 🚀 STEP 2: MODEL PREDICTION
             with st.spinner("Analyzing MRI..."):
-
                 proba = model.predict_proba(features)
                 confidence = np.max(proba)
                 pred = np.argmax(proba)
 
-            # Step 2: Show result
+            # 🚀 STEP 3: RESULT
             if pred == 0:
                 result = "Hemorrhagic Stroke"
             elif pred == 1:
@@ -87,6 +98,7 @@ if file is not None:
             else:
                 result = "Unknown"
 
+            # 🚀 STEP 4: DISPLAY
             st.success(f"🧠 Prediction: {result}")
             st.write(f"Confidence: {confidence*100:.2f}%")
 
