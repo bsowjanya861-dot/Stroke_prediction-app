@@ -7,11 +7,11 @@ from xgboost import XGBClassifier
 # -------------------------------
 # PAGE SETTINGS
 # -------------------------------
-st.set_page_config(page_title="Stroke Prediction", layout="centered")
-st.title("🧠 Brain Stroke Prediction")
+st.set_page_config(page_title="CT Stroke Prediction", layout="centered")
+st.title("🧠 Brain CT Scan Stroke Prediction")
 
 # -------------------------------
-# LOAD MODEL (CACHE)
+# LOAD MODEL (CACHED)
 # -------------------------------
 @st.cache_resource
 def load_model():
@@ -22,35 +22,48 @@ def load_model():
 model = load_model()
 
 # -------------------------------
-# STRONG MRI CHECK FUNCTION
+# CT SCAN CHECK FUNCTION
 # -------------------------------
-def is_mri_image(img):
+def is_ct_scan(img):
+    """
+    Detect if the uploaded image is likely a CT scan.
+    CT scans are mostly grayscale, low color variation, and medium contrast.
+    """
     img = np.array(img)
 
     # Convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    std = np.std(gray)  # contrast
 
-    # Texture variation
-    std = np.std(gray)
-
-    # Channel similarity (MRI = grayscale)
+    # Channel similarity check (CT scans are grayscale)
     b, g, r = cv2.split(img)
     diff_rg = np.mean(np.abs(r - g))
     diff_rb = np.mean(np.abs(r - b))
     diff_gb = np.mean(np.abs(g - b))
 
-    # Final condition
+    # Final rule
     if (diff_rg < 10 and diff_rb < 10 and diff_gb < 10) and (std < 80):
         return True
     else:
         return False
 
 # -------------------------------
-# FEATURE EXTRACTION FUNCTION
+# FILE UPLOAD
 # -------------------------------
-def extract_features(img):
-    img_resized = cv2.resize(img, (64, 64))
+file = st.file_uploader("Upload Brain CT Scan Image", type=["jpg", "png", "jpeg"])
 
+if file is not None:
+    # Show uploaded image
+    img_pil = Image.open(file).convert("RGB")
+    st.image(img_pil, caption="Uploaded Image", use_container_width=True)
+
+    # Convert to numpy for processing
+    img = np.array(img_pil)
+
+    # -------------------------------
+    # FEATURE EXTRACTION
+    # -------------------------------
+    img_resized = cv2.resize(img, (64, 64))
     pixel_features = img_resized.flatten()
 
     mean = np.mean(img_resized)
@@ -58,48 +71,24 @@ def extract_features(img):
     maxv = np.max(img_resized)
     minv = np.min(img_resized)
 
-    features = np.hstack([pixel_features, mean, std, maxv, minv])
-    return features.reshape(1, -1)
-
-# -------------------------------
-# FILE UPLOAD
-# -------------------------------
-file = st.file_uploader("Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
-
-if file is not None:
-
-    # Load image
-    img_pil = Image.open(file).convert("RGB")
-    st.image(img_pil, caption="Uploaded Image", use_container_width=True)
-
-    # Convert to numpy
-    img = np.array(img_pil)
-
-    # Extract features
-    features = extract_features(img)
+    features = np.hstack([pixel_features, mean, std, maxv, minv]).reshape(1, -1)
 
     # -------------------------------
-    # PREDICT BUTTON
+    # PREDICTION BUTTON
     # -------------------------------
     if st.button("Predict"):
 
-        # STEP 1: MRI VALIDATION
-        if not is_mri_image(img):
-            st.error("❌ Invalid Image: Please upload a Brain MRI scan")
-        
+        # Step 1: Validate CT scan
+        if not is_ct_scan(img):
+            st.error("❌ This is NOT a valid Brain CT scan image. Please upload a proper CT scan.")
         else:
-            # STEP 2: MODEL PREDICTION
-            with st.spinner("Analyzing MRI..."):
-
+            # Step 2: Predict stroke type
+            with st.spinner("Analyzing CT scan..."):
                 proba = model.predict_proba(features)
                 confidence = np.max(proba)
                 pred = np.argmax(proba)
 
-            # STEP 3: LOW CONFIDENCE CHECK
-            if confidence < 0.75:
-                st.warning("⚠️ Low confidence prediction. Try another MRI image.")
-
-            # STEP 4: RESULT
+            # Step 3: Show result
             if pred == 0:
                 result = "Hemorrhagic Stroke"
             elif pred == 1:
@@ -107,7 +96,6 @@ if file is not None:
             else:
                 result = "Unknown"
 
-            # STEP 5: DISPLAY
             st.success(f"🧠 Prediction: {result}")
             st.write(f"Confidence: {confidence*100:.2f}%")
             st.progress(int(confidence * 100))
