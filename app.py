@@ -110,4 +110,4 @@ if file is not None:
             # STEP 5: DISPLAY
             st.success(f"🧠 Prediction: {result}")
             st.write(f"Confidence: {confidence*100:.2f}%")
-            st.progress(int(confidence * 100))
+            
