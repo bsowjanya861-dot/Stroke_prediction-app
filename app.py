@@ -39,6 +39,5 @@ if file is not None:
                     st.error("⚠️ Hemorrhagic Stroke Detected")
                 else:
                     st.success("✅ Ischaemic Stroke Detected")
-
-    except:
-        st.warning("⚠️ Invalid image file.")
+                except:
+                    st.warning("⚠️ Invalid image file.")
