@@ -6,18 +6,18 @@ from xgboost import XGBClassifier
 st.set_page_config(page_title="CT Stroke Prediction", layout="centered")
 st.title("🧠 XGBoost Brain Stroke Prediction (RGB CT)")
 
-# Load the trained XGBoost model
+# Load trained XGBoost model
 model = XGBClassifier()
 model.load_model("hybrid_stroke_model.json")
 
 def preprocess_image(img):
-    # Resize to 224x224 (matches training)
-    img = img.resize((224, 224))
-    # Convert to RGB (if not already)
+    # Ensure RGB
     img = img.convert("RGB")
-    # Convert to NumPy array
-    arr = np.array(img) / 255.0  # normalize
-    # Flatten
+    # Resize to 224x224
+    img = img.resize((224, 224))
+    # Convert to numpy array and normalize
+    arr = np.array(img) / 255.0
+    # Flatten to match training features
     features = arr.flatten()
     return features.reshape(1, -1)
 
@@ -28,7 +28,7 @@ if file is not None:
         img = Image.open(file)
         st.image(img, caption="Uploaded CT Scan", use_container_width=True)
 
-        # Preprocess
+        # Preprocess exactly like training
         features = preprocess_image(img)
 
         if st.button("Predict"):
@@ -37,6 +37,5 @@ if file is not None:
                 st.error("⚠️ Hemorrhagic Stroke Detected")
             else:
                 st.success("✅ Ischaemic Stroke Detected")
-
-    except:
-        st.warning("⚠️ Invalid image. Please upload a CT scan only.")
+    except Exception as e:
+        st.warning("⚠️ Invalid image. Please upload a proper CT scan.")
