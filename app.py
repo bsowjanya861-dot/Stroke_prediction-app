@@ -4,98 +4,38 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 
-# -------------------------------
-# PAGE SETTINGS
-# -------------------------------
-st.set_page_config(page_title="CT Stroke Prediction", layout="centered")
-st.title("🧠 Brain CT Scan Stroke Prediction")
+st.set_page_config(page_title="Stroke Prediction", layout="centered")
 
-# -------------------------------
-# LOAD MODEL (CACHED)
-# -------------------------------
-@st.cache_resource
-def load_model():
-    model = XGBClassifier()
-    model.load_model("hybrid_stroke_model.json")
-    return model
+st.title("🧠 Hybrid XGBoost for Brain Stroke Prediction")
 
-model = load_model()
+model = XGBClassifier()
+model.load_model("hybrid_stroke_model.json")
 
-# -------------------------------
-# CT SCAN CHECK FUNCTION
-# -------------------------------
-def is_ct_scan(img):
-    """
-    Detect if the uploaded image is likely a CT scan.
-    CT scans are mostly grayscale, low color variation, and medium contrast.
-    """
-    img = np.array(img)
-
-    # Convert to grayscale
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    std = np.std(gray)  # contrast
-
-    # Channel similarity check (CT scans are grayscale)
-    b, g, r = cv2.split(img)
-    diff_rg = np.mean(np.abs(r - g))
-    diff_rb = np.mean(np.abs(r - b))
-    diff_gb = np.mean(np.abs(g - b))
-
-    # Final rule
-    if (diff_rg < 10 and diff_rb < 10 and diff_gb < 10) and (std < 80):
-        return True
-    else:
-        return False
-
-# -------------------------------
-# FILE UPLOAD
-# -------------------------------
-file = st.file_uploader("Upload Brain CT Scan Image", type=["jpg", "png", "jpeg"])
+file = st.file_uploader("Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
 if file is not None:
-    # Show uploaded image
-    img_pil = Image.open(file).convert("RGB")
-    st.image(img_pil, caption="Uploaded Image", use_container_width=True)
 
-    # Convert to numpy for processing
-    img = np.array(img_pil)
+    img = Image.open(file).convert("RGB")
+    st.image(img, caption="Uploaded MRI", use_container_width=True)
 
-    # -------------------------------
-    # FEATURE EXTRACTION
-    # -------------------------------
-    img_resized = cv2.resize(img, (64, 64))
-    pixel_features = img_resized.flatten()
+    img = np.array(img)
+    img = cv2.resize(img, (64, 64))
 
-    mean = np.mean(img_resized)
-    std = np.std(img_resized)
-    maxv = np.max(img_resized)
-    minv = np.min(img_resized)
+    pixel_features = img.flatten()
 
-    features = np.hstack([pixel_features, mean, std, maxv, minv]).reshape(1, -1)
+    mean = np.mean(img)
+    std = np.std(img)
+    maxv = np.max(img)
+    minv = np.min(img)
 
-    # -------------------------------
-    # PREDICTION BUTTON
-    # -------------------------------
+    features = np.hstack([pixel_features, mean, std, maxv, minv])
+    features = features.reshape(1, -1)
+
     if st.button("Predict"):
 
-        # Step 1: Validate CT scan
-        if not is_ct_scan(img):
-            st.error("❌ This is NOT a valid Brain CT scan image. Please upload a proper CT scan.")
+        pred = model.predict(features)
+
+        if pred[0] == 0:
+            st.error("⚠️ Hemorrhagic Stroke Detected")
         else:
-            # Step 2: Predict stroke type
-            with st.spinner("Analyzing CT scan..."):
-                proba = model.predict_proba(features)
-                confidence = np.max(proba)
-                pred = np.argmax(proba)
-
-            # Step 3: Show result
-            if pred == 0:
-                result = "Hemorrhagic Stroke"
-            elif pred == 1:
-                result = "Ischemic Stroke"
-            else:
-                result = "Unknown"
-
-            st.success(f"🧠 Prediction: {result}")
-            st.write(f"Confidence: {confidence*100:.2f}%")
-            st.progress(int(confidence * 100))
+            st.success("✅ Ischaemic Stroke Detected")
