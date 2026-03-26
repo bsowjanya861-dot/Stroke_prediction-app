@@ -1,47 +1,44 @@
 import streamlit as st
 import numpy as np
+import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 
-st.set_page_config(page_title="CT Stroke Prediction", layout="centered")
-st.title("🧠 XGBoost Brain Stroke Prediction (CT Scan)")
+st.title("🧠 CT Stroke Prediction")
 
-# Load the trained XGBoost model
+# Load trained XGBoost model
 model = XGBClassifier()
 model.load_model("hybrid_stroke_model.json")
 
-# File uploader
-file = st.file_uploader("Upload CT Scan Image", type=["jpg", "png", "jpeg"])
+def preprocess_ct(img):
+    # Grayscale, resize, normalize, flatten + stats
+    img = img.convert("L")
+    img = img.resize((64, 64))
+    arr = np.array(img) / 255.0
+    features = np.hstack([arr.flatten(), np.mean(arr), np.std(arr), np.max(arr), np.min(arr)])
+    return features.reshape(1, -1)
+
+file = st.file_uploader("Upload CT scan", type=["jpg","png","jpeg"])
 
 if file is not None:
     try:
-        # Open image and convert to grayscale
-        img = Image.open(file).convert("L")  # L = grayscale
-        st.image(img, caption="Uploaded CT Scan", use_container_width=True)
+        img = Image.open(file)
+        st.image(img, caption="Uploaded Image", use_container_width=True)
 
-        # Resize image to 64x64 (match training)
-        img_resized = img.resize((64, 64))
-        img_array = np.array(img_resized, dtype=np.float32)
+        # TODO: Replace this with a real CNN CT vs non-CT check
+        # For now, we assume user uploads CT
+        is_ct_scan = True  # Placeholder — currently always True
 
-        # Normalize pixel values to 0-1
-        img_normalized = img_array / 255.0
+        if not is_ct_scan:
+            st.warning("⚠️ This does not look like a CT scan.")
+        else:
+            features = preprocess_ct(img)
+            if st.button("Predict"):
+                pred = model.predict(features)
+                if pred[0] == 0:
+                    st.error("⚠️ Hemorrhagic Stroke Detected")
+                else:
+                    st.success("✅ Ischaemic Stroke Detected")
 
-        # Flatten and compute extra features
-        pixel_features = img_normalized.flatten()
-        mean = np.mean(img_normalized)
-        std = np.std(img_normalized)
-        maxv = np.max(img_normalized)
-        minv = np.min(img_normalized)
-        features = np.hstack([pixel_features, mean, std, maxv, minv]).reshape(1, -1)
-
-        # Predict stroke type
-        if st.button("Predict"):
-            pred = model.predict(features)
-            if pred[0] == 0:
-                st.error("⚠️ Hemorrhagic Stroke Detected")
-            else:
-                st.success("✅ Ischaemic Stroke Detected")
-
-    except Exception as e:
-        st.warning("⚠️ Error processing image. Please upload a valid CT scan.")
-        st.text(f"Debug info: {e}")
+    except:
+        st.warning("⚠️ Invalid image file.")
