@@ -1,70 +1,85 @@
 import streamlit as st
 import numpy as np
+import cv2
 from PIL import Image
 from xgboost import XGBClassifier
-from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-from tensorflow.keras.models import load_model
 
-st.set_page_config(page_title="CT Stroke Prediction", layout="centered")
-st.title("🧠 CT Stroke + Stroke Type Prediction")
+# -------------------- PAGE SETTINGS --------------------
+st.set_page_config(
+    page_title="Brain Stroke Detection",
+    page_icon="🧠",
+    layout="centered"
+)
 
-# ------------------------
-# Load CT Detector (CNN)
-# ------------------------
-# You need to train this model separately:
-#   - Input: 224x224 RGB images
-#   - Output: 1 = CT scan, 0 = Not CT scan
-# Example filename: 'ct_detector.h5'
-ct_detector = load_model("ct_detector.h5")
+# -------------------- TITLE --------------------
+st.title("🧠 Brain Stroke Detection App")
+st.markdown("Upload a brain MRI image to predict stroke type")
 
-# ------------------------
-# Load XGBoost Stroke Model
-# ------------------------
-xgb_model = XGBClassifier()
-xgb_model.load_model("hybrid_stroke_model.json")  # your existing model
+# -------------------- SIDEBAR --------------------
+st.sidebar.title("About")
+st.sidebar.info(
+    "This app uses XGBoost model to classify MRI images into:\n"
+    "- Hemorrhagic Stroke\n"
+    "- Ischemic Stroke\n\n"
+    "⚠️ Not for medical use"
+)
 
-# ------------------------
-# Preprocessing functions
-# ------------------------
-def preprocess_for_cnn(img):
-    img = img.convert("RGB")
-    img = img.resize((224, 224))
-    arr = np.array(img)
-    arr = preprocess_input(arr)
-    arr = np.expand_dims(arr, axis=0)
-    return arr
+# -------------------- LOAD MODEL --------------------
+@st.cache_resource
+def load_model():
+    model = XGBClassifier()
+    model.load_model("hybrid_stroke_model.json")
+    return model
 
-def preprocess_for_xgb(img):
-    img = img.convert("RGB")
-    img = img.resize((224, 224))
-    arr = np.array(img) / 255.0
-    features = arr.flatten()
-    return features.reshape(1, -1)
+model = load_model()
 
-# ------------------------
-# Upload and predict
-# ------------------------
-file = st.file_uploader("Upload CT scan image", type=["jpg","png","jpeg"])
+# -------------------- FILE UPLOAD --------------------
+file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
+# -------------------- PROCESS --------------------
 if file is not None:
+
     try:
-        img = Image.open(file)
+        # Read image
+        img = Image.open(file).convert("RGB")
         st.image(img, caption="Uploaded Image", use_container_width=True)
 
-        # Step 1: Check if image is a CT scan
-        cnn_input = preprocess_for_cnn(img)
-        ct_prob = ct_detector.predict(cnn_input)[0][0]
-        if ct_prob < 0.5:
-            st.warning("⚠️ This does not appear to be a CT scan. Please upload a valid CT scan image.")
-        else:
-            # Step 2: Predict stroke type with XGBoost
-            features = preprocess_for_xgb(img)
-            if st.button("Predict Stroke Type"):
-                pred = xgb_model.predict(features)
-                if pred[0] == 0:
+        # Convert to numpy
+        img = np.array(img)
+
+        # Resize (IMPORTANT: must match training)
+        img = cv2.resize(img, (64, 64))
+
+        # Feature extraction
+        pixel_features = img.flatten()
+
+        mean = np.mean(img)
+        std = np.std(img)
+        maxv = np.max(img)
+        minv = np.min(img)
+
+        features = np.hstack([pixel_features, mean, std, maxv, minv])
+        features = features.reshape(1, -1)
+
+        # -------------------- PREDICT --------------------
+        if st.button("🔍 Predict"):
+
+            proba = model.predict_proba(features)
+            confidence = np.max(proba)
+            pred = np.argmax(proba)
+
+            # -------------------- CONFIDENCE CHECK --------------------
+            if confidence < 0.7:
+                st.warning("⚠️ This does not look like a valid brain MRI image")
+                st.write(f"Confidence: {confidence:.2f}")
+
+            else:
+                if pred == 0:
                     st.error("⚠️ Hemorrhagic Stroke Detected")
                 else:
-                    st.success("✅ Ischaemic Stroke Detected")
+                    st.success("✅ Ischemic Stroke Detected")
+
+                st.write(f"Confidence: {confidence:.2f}")
+
     except Exception as e:
-        st.warning(f"⚠️ Invalid image. Please upload a valid CT scan. Error: {e}")
+        st.error(f"❌ Error processing image: {e}")
