@@ -4,7 +4,7 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 
-# -------------------- PAGE SETTINGS --------------------
+# -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="Brain Stroke Detection",
     page_icon="🧠",
@@ -13,15 +13,16 @@ st.set_page_config(
 
 # -------------------- TITLE --------------------
 st.title("🧠 Brain Stroke Detection App")
-st.markdown("Upload a brain MRI image to predict stroke type")
+st.markdown("Upload a **Brain MRI image** to predict stroke type")
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("About")
 st.sidebar.info(
-    "This app uses XGBoost model to classify MRI images into:\n"
+    "This app uses an XGBoost model to detect stroke type.\n\n"
+    "Classes:\n"
     "- Hemorrhagic Stroke\n"
     "- Ischemic Stroke\n\n"
-    "⚠️ Not for medical use"
+    "⚠️ This is a demo project (not for medical use)"
 )
 
 # -------------------- LOAD MODEL --------------------
@@ -36,18 +37,17 @@ model = load_model()
 # -------------------- FILE UPLOAD --------------------
 file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
-# -------------------- PROCESS --------------------
+# -------------------- MAIN LOGIC --------------------
 if file is not None:
-
     try:
-        # Read image
+        # Display image
         img = Image.open(file).convert("RGB")
         st.image(img, caption="Uploaded Image", use_container_width=True)
 
-        # Convert to numpy
+        # Convert to array
         img = np.array(img)
 
-        # Resize (IMPORTANT: must match training)
+        # Resize (must match training)
         img = cv2.resize(img, (64, 64))
 
         # Feature extraction
@@ -65,12 +65,12 @@ if file is not None:
         if st.button("🔍 Predict"):
 
             proba = model.predict_proba(features)
-            confidence = np.max(proba)
-            pred = np.argmax(proba)
+            confidence = float(np.max(proba))
+            pred = int(np.argmax(proba))
 
-            # -------------------- CONFIDENCE CHECK --------------------
-            if confidence < 0.7:
-                st.warning("⚠️ This does not look like a valid brain MRI image")
+            # -------------------- STRICT VALIDATION --------------------
+            if confidence < 0.90:
+                st.error("❌ Invalid Image: Please upload a valid Brain MRI scan")
                 st.write(f"Confidence: {confidence:.2f}")
 
             else:
