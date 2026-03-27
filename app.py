@@ -1,64 +1,29 @@
-import streamlit as st
-import numpy as np
-import cv2
-from PIL import Image
-from xgboost import XGBClassifier
+if st.button("🔍 Predict"):
 
-# ---------------- PAGE ----------------
-st.set_page_config(page_title="CT Stroke Detection", layout="centered")
+    proba = model.predict_proba(features)
+    confidence = float(np.max(proba))
+    pred = int(np.argmax(proba))
 
-st.title("🧠 CT Scan Stroke Detection")
-st.markdown("Upload a CT scan image")
+    # -------------------- SMART VALIDATION --------------------
+    
+    if confidence < 0.60:
+        st.error("❌ Invalid Image: Not a brain scan")
+        st.write(f"Confidence: {confidence:.2f}")
 
-# ---------------- LOAD MODEL ----------------
-@st.cache_resource
-def load_model():
-    model = XGBClassifier()
-    model.load_model("ct_stroke_model.json")   # YOUR CT MODEL
-    return model
+    elif 0.60 <= confidence < 0.80:
+        st.warning("⚠️ Low confidence prediction (image may be unclear)")
 
-model = load_model()
+        if pred == 0:
+            st.error("⚠️ Hemorrhagic Stroke (Low Confidence)")
+        else:
+            st.success("✅ Ischemic Stroke (Low Confidence)")
 
-# ---------------- UPLOAD ----------------
-file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+        st.write(f"Confidence: {confidence:.2f}")
 
-if file is not None:
-    try:
-        img = Image.open(file).convert("RGB")
-        st.image(img, use_container_width=True)
+    else:
+        if pred == 0:
+            st.error("⚠️ Hemorrhagic Stroke Detected")
+        else:
+            st.success("✅ Ischemic Stroke Detected")
 
-        img = np.array(img)
-        img = cv2.resize(img, (64, 64))
-
-        # FEATURE EXTRACTION (MUST MATCH TRAINING)
-        pixel_features = img.flatten()
-
-        mean = np.mean(img)
-        std = np.std(img)
-        maxv = np.max(img)
-        minv = np.min(img)
-
-        features = np.hstack([pixel_features, mean, std, maxv, minv])
-        features = features.reshape(1, -1)
-
-        if st.button("Predict"):
-
-            proba = model.predict_proba(features)
-            confidence = float(np.max(proba))
-            pred = int(np.argmax(proba))
-
-            # ---------------- KEY FIX ----------------
-            if confidence < 0.75:
-                st.error("❌ Not a valid CT scan image")
-                st.write(f"Confidence: {confidence:.2f}")
-
-            else:
-                if pred == 0:
-                    st.error("⚠️ Hemorrhagic Stroke")
-                else:
-                    st.success("✅ Ischemic Stroke")
-
-                st.write(f"Confidence: {confidence:.2f}")
-
-    except Exception as e:
-        st.error(f"Error: {e}")
+        st.write(f"Confidence: {confidence:.2f}")
