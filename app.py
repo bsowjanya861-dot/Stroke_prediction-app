@@ -13,7 +13,7 @@ st.set_page_config(
 
 # -------------------- TITLE --------------------
 st.title("🧠 Brain Stroke Detection App")
-st.markdown("Upload a **Brain MRI image** to predict stroke type")
+st.markdown("Upload a **Brain Scan Image (CT/MRI)** to predict stroke type")
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("About")
@@ -21,63 +21,68 @@ st.sidebar.info(
     "This app uses an XGBoost model to detect stroke type.\n\n"
     "Classes:\n"
     "- Hemorrhagic Stroke\n"
-    "- Ischemic Stroke\n\n"
-    "⚠️ This is a demo project (not for medical use)"
+    "- Ischemic Stroke\n"
+    "- Normal\n\n"
+    "⚠️ Demo project (not for medical use)"
 )
 
 # -------------------- LOAD MODEL --------------------
 @st.cache_resource
 def load_model():
     model = XGBClassifier()
-    model.load_model("hybrid_stroke_model.json")
+    model.load_model("hybrid_stroke_model.json")  # must be trained with 3 classes
     return model
 
 model = load_model()
 
 # -------------------- FILE UPLOAD --------------------
-file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
+file = st.file_uploader("📤 Upload Brain Image", type=["jpg", "png", "jpeg"])
+
+# -------------------- FEATURE FUNCTION --------------------
+def extract_features(img):
+    img = cv2.resize(img, (64, 64))
+    img = img / 255.0   # normalize
+
+    pixel_features = img.flatten()
+
+    mean = np.mean(img)
+    std = np.std(img)
+    maxv = np.max(img)
+    minv = np.min(img)
+
+    features = np.hstack([pixel_features, mean, std, maxv, minv])
+    return features.reshape(1, -1)
 
 # -------------------- MAIN LOGIC --------------------
 if file is not None:
     try:
-        # Display image
         img = Image.open(file).convert("RGB")
         st.image(img, caption="Uploaded Image", use_container_width=True)
 
-        # Convert to array
         img = np.array(img)
 
-        # Resize (must match training)
-        img = cv2.resize(img, (64, 64))
-
-        # Feature extraction
-        pixel_features = img.flatten()
-
-        mean = np.mean(img)
-        std = np.std(img)
-        maxv = np.max(img)
-        minv = np.min(img)
-
-        features = np.hstack([pixel_features, mean, std, maxv, minv])
-        features = features.reshape(1, -1)
-
-        # -------------------- PREDICT --------------------
         if st.button("🔍 Predict"):
+
+            features = extract_features(img)
 
             proba = model.predict_proba(features)
             confidence = float(np.max(proba))
             pred = int(np.argmax(proba))
 
-            # -------------------- STRICT VALIDATION --------------------
-            if confidence < 0.90:
-                st.error("❌ Invalid Image: Please upload a valid Brain MRI scan")
+            # -------------------- LOW CONFIDENCE CHECK --------------------
+            if confidence < 0.75:
+                st.warning("⚠️ Low confidence prediction")
+                st.info("👉 Image may be unclear or not a valid brain scan")
                 st.write(f"Confidence: {confidence:.2f}")
 
             else:
+                # -------------------- OUTPUT --------------------
                 if pred == 0:
                     st.error("⚠️ Hemorrhagic Stroke Detected")
-                else:
+                elif pred == 1:
                     st.success("✅ Ischemic Stroke Detected")
+                elif pred == 2:
+                    st.info("🟢 Normal (No Stroke Detected)")
 
                 st.write(f"Confidence: {confidence:.2f}")
 
