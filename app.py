@@ -4,13 +4,28 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 
-# ---------------- PAGE ----------------
-st.set_page_config(page_title="Brain Stroke Detection", layout="centered")
+# -------------------- PAGE CONFIG --------------------
+st.set_page_config(
+    page_title="Brain Stroke Detection",
+    page_icon="🧠",
+    layout="centered"
+)
 
+# -------------------- TITLE --------------------
 st.title("🧠 Brain Stroke Detection App")
-st.markdown("Upload a brain scan image")
+st.markdown("Upload a **Brain MRI image** to predict stroke type")
 
-# ---------------- LOAD MODEL ----------------
+# -------------------- SIDEBAR --------------------
+st.sidebar.title("About")
+st.sidebar.info(
+    "This app uses an XGBoost model to detect stroke type.\n\n"
+    "Classes:\n"
+    "- Hemorrhagic Stroke\n"
+    "- Ischemic Stroke\n\n"
+    "⚠️ This is a demo project (not for medical use)"
+)
+
+# -------------------- LOAD MODEL --------------------
 @st.cache_resource
 def load_model():
     model = XGBClassifier()
@@ -19,15 +34,20 @@ def load_model():
 
 model = load_model()
 
-# ---------------- UPLOAD ----------------
-file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+# -------------------- FILE UPLOAD --------------------
+file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
+# -------------------- MAIN LOGIC --------------------
 if file is not None:
     try:
+        # Display image
         img = Image.open(file).convert("RGB")
-        st.image(img, use_container_width=True)
+        st.image(img, caption="Uploaded Image", use_container_width=True)
 
+        # Convert to array
         img = np.array(img)
+
+        # Resize (must match training)
         img = cv2.resize(img, (64, 64))
 
         # Feature extraction
@@ -41,28 +61,19 @@ if file is not None:
         features = np.hstack([pixel_features, mean, std, maxv, minv])
         features = features.reshape(1, -1)
 
-        if st.button("Predict"):
+        # -------------------- PREDICT --------------------
+        if st.button("🔍 Predict"):
 
             proba = model.predict_proba(features)
             confidence = float(np.max(proba))
             pred = int(np.argmax(proba))
 
-            # ---------------- SMART VALIDATION ----------------
-            if confidence < 0.65:
-                st.error("❌ Invalid Image (Not a brain scan)")
+            # -------------------- STRICT VALIDATION --------------------
+            if confidence < 0.90:
+                st.error("❌ Invalid Image: Please upload a valid Brain MRI scan")
                 st.write(f"Confidence: {confidence:.2f}")
-
-            elif confidence < 0.75:
-                st.warning("⚠️ Low confidence prediction (image unclear)")
-                st.write(f"Confidence: {confidence:.2f}")
-
-                if pred == 0:
-                    st.error("⚠️ Hemorrhagic Stroke (low confidence)")
-                else:
-                    st.success("✅ Ischemic Stroke (low confidence)")
 
             else:
-                # HIGH CONFIDENCE
                 if pred == 0:
                     st.error("⚠️ Hemorrhagic Stroke Detected")
                 else:
@@ -71,4 +82,4 @@ if file is not None:
                 st.write(f"Confidence: {confidence:.2f}")
 
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"❌ Error processing image: {e}")
