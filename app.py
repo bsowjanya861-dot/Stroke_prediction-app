@@ -22,7 +22,7 @@ st.sidebar.info(
     "Classes:\n"
     "- Hemorrhagic Stroke\n"
     "- Ischemic Stroke\n\n"
-    "⚠️ Demo only (not medical use)"
+    "⚠️ This is a demo project (not for medical use)"
 )
 
 # -------------------- LOAD MODEL --------------------
@@ -34,72 +34,73 @@ def load_model():
 
 model = load_model()
 
+# -------------------- IMAGE VALIDATION FUNCTION --------------------
+def is_valid_mri(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    mean = np.mean(gray)
+    std = np.std(gray)
+
+    # Heuristic rules (tune if needed)
+    if std < 20:
+        return False
+    if mean < 10 or mean > 220:
+        return False
+
+    return True
+
 # -------------------- FILE UPLOAD --------------------
 file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
 # -------------------- MAIN LOGIC --------------------
 if file is not None:
     try:
-        # Read image
+        # Display image
         img = Image.open(file).convert("RGB")
         st.image(img, caption="Uploaded Image", use_container_width=True)
 
         # Convert to array
         img = np.array(img)
 
-        # Safety check
-        if img is None:
-            st.error("❌ Invalid image file")
-            st.stop()
-
-        # Resize (same as training)
+        # Resize
         img = cv2.resize(img, (64, 64))
 
-        # Normalize
-        img = img / 255.0
+        # -------------------- VALIDATION --------------------
+        if not is_valid_mri(img):
+            st.error("❌ Invalid Image: Not a Brain MRI")
+        else:
+            # Normalize
+            img_norm = img / 255.0
 
-        # -------------------- IMAGE VALIDATION --------------------
-        mean_val = np.mean(img)
-        std_val = np.std(img)
+            # Feature extraction
+            pixel_features = img_norm.flatten()
 
-        # Reject very dark/bright images
-        if mean_val < 0.05 or mean_val > 0.95:
-            st.error("❌ Invalid Image (Lighting issue / Not MRI)")
-            st.stop()
+            mean = np.mean(img_norm)
+            std = np.std(img_norm)
+            maxv = np.max(img_norm)
+            minv = np.min(img_norm)
 
-        # Reject flat images
-        if std_val < 0.05:
-            st.error("❌ Invalid Image (Too plain / Not MRI)")
-            st.stop()
+            features = np.hstack([pixel_features, mean, std, maxv, minv])
+            features = features.reshape(1, -1)
 
-        # -------------------- FEATURE EXTRACTION (IMPORTANT FIX) --------------------
-        pixel_features = img.flatten()
+            # -------------------- PREDICT --------------------
+            if st.button("🔍 Predict"):
 
-        mean = np.mean(img)
-        std = np.std(img)
-        maxv = np.max(img)
-        minv = np.min(img)
+                proba = model.predict_proba(features)
+                confidence = float(np.max(proba))
+                pred = int(np.argmax(proba))
 
-        features = np.hstack([pixel_features, mean, std, maxv, minv])
-        features = features.reshape(1, -1)
-
-        # -------------------- PREDICTION --------------------
-        if st.button("🔍 Predict"):
-
-            proba = model.predict_proba(features)
-            confidence = float(np.max(proba))
-            pred = int(np.argmax(proba))
-
-            # Strong validation
-            if confidence < 0.85:
-                st.error("❌ Invalid Image (Not a Brain MRI)")
-            else:
-                if pred == 0:
-                    st.error("⚠️ Hemorrhagic Stroke Detected")
+                # Confidence check
+                if confidence < 0.90:
+                    st.error("❌ Invalid Image: Low confidence. Please upload a valid Brain MRI scan.")
+                    st.write(f"Confidence: {confidence:.2f}")
                 else:
-                    st.success("✅ Ischemic Stroke Detected")
+                    if pred == 0:
+                        st.error("⚠️ Hemorrhagic Stroke Detected")
+                    else:
+                        st.success("✅ Ischemic Stroke Detected")
 
-                st.write(f"Confidence: {confidence:.2f}")
+                    st.write(f"Confidence: {confidence:.2f}")
 
     except Exception as e:
         st.error(f"❌ Error processing image: {e}")
