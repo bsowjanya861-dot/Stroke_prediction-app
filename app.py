@@ -34,6 +34,21 @@ def load_model():
 
 model = load_model()
 
+# -------------------- IMAGE VALIDATION FUNCTION --------------------
+def is_valid_mri(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    mean = np.mean(gray)
+    std = np.std(gray)
+
+    # Heuristic rules (tune if needed)
+    if std < 20:
+        return False
+    if mean < 10 or mean > 220:
+        return False
+
+    return True
+
 # -------------------- FILE UPLOAD --------------------
 file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
@@ -47,39 +62,45 @@ if file is not None:
         # Convert to array
         img = np.array(img)
 
-        # Resize (must match training)
+        # Resize
         img = cv2.resize(img, (64, 64))
 
-        # Feature extraction
-        pixel_features = img.flatten()
+        # -------------------- VALIDATION --------------------
+        if not is_valid_mri(img):
+            st.error("❌ Invalid Image: Not a Brain MRI")
+        else:
+            # Normalize
+            img_norm = img / 255.0
 
-        mean = np.mean(img)
-        std = np.std(img)
-        maxv = np.max(img)
-        minv = np.min(img)
+            # Feature extraction
+            pixel_features = img_norm.flatten()
 
-        features = np.hstack([pixel_features, mean, std, maxv, minv])
-        features = features.reshape(1, -1)
+            mean = np.mean(img_norm)
+            std = np.std(img_norm)
+            maxv = np.max(img_norm)
+            minv = np.min(img_norm)
 
-        # -------------------- PREDICT --------------------
-        if st.button("🔍 Predict"):
+            features = np.hstack([pixel_features, mean, std, maxv, minv])
+            features = features.reshape(1, -1)
 
-            proba = model.predict_proba(features)
-            confidence = float(np.max(proba))
-            pred = int(np.argmax(proba))
+            # -------------------- PREDICT --------------------
+            if st.button("🔍 Predict"):
 
-            # -------------------- STRICT VALIDATION --------------------
-            if confidence < 0.90:
-                st.error("❌ Invalid Image: Please upload a valid Brain MRI scan")
-                st.write(f"Confidence: {confidence:.2f}")
+                proba = model.predict_proba(features)
+                confidence = float(np.max(proba))
+                pred = int(np.argmax(proba))
 
-            else:
-                if pred == 0:
-                    st.error("⚠️ Hemorrhagic Stroke Detected")
+                # Confidence check
+                if confidence < 0.90:
+                    st.error("❌ Invalid Image: Low confidence. Please upload a valid Brain MRI scan.")
+                    st.write(f"Confidence: {confidence:.2f}")
                 else:
-                    st.success("✅ Ischemic Stroke Detected")
+                    if pred == 0:
+                        st.error("⚠️ Hemorrhagic Stroke Detected")
+                    else:
+                        st.success("✅ Ischemic Stroke Detected")
 
-                st.write(f"Confidence: {confidence:.2f}")
+                    st.write(f"Confidence: {confidence:.2f}")
 
     except Exception as e:
         st.error(f"❌ Error processing image: {e}")
