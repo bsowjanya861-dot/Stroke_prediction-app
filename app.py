@@ -36,20 +36,16 @@ model = load_model()
 
 # -------------------- IMAGE VALIDATION FUNCTION --------------------
 def is_valid_mri(img):
-    """
-    Basic heuristic to reject non-MRI images
-    """
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-    mean_intensity = np.mean(gray)
-    std_intensity = np.std(gray)
+    mean = np.mean(gray)
+    std = np.std(gray)
 
-    # Heuristic rules
-    if std_intensity < 10:
-        return False  # too flat / no structure
-
-    if mean_intensity < 20 or mean_intensity > 230:
-        return False  # too dark or too bright
+    # Heuristic rules (tune if needed)
+    if std < 20:
+        return False
+    if mean < 10 or mean > 220:
+        return False
 
     return True
 
@@ -69,30 +65,34 @@ if file is not None:
         # Resize
         img = cv2.resize(img, (64, 64))
 
-        # -------------------- VALIDATION STEP --------------------
+        # -------------------- VALIDATION --------------------
         if not is_valid_mri(img):
-            st.error("❌ Invalid Image: Please upload a valid Brain MRI scan")
+            st.error("❌ Invalid Image: Not a Brain MRI")
         else:
-            # Feature extraction
-            pixel_features = img.flatten()
+            # Normalize
+            img_norm = img / 255.0
 
-            mean = np.mean(img)
-            std = np.std(img)
-            maxv = np.max(img)
-            minv = np.min(img)
+            # Feature extraction
+            pixel_features = img_norm.flatten()
+
+            mean = np.mean(img_norm)
+            std = np.std(img_norm)
+            maxv = np.max(img_norm)
+            minv = np.min(img_norm)
 
             features = np.hstack([pixel_features, mean, std, maxv, minv])
             features = features.reshape(1, -1)
 
             # -------------------- PREDICT --------------------
             if st.button("🔍 Predict"):
+
                 proba = model.predict_proba(features)
                 confidence = float(np.max(proba))
                 pred = int(np.argmax(proba))
 
-                # Confidence filter
+                # Confidence check
                 if confidence < 0.90:
-                    st.error("❌ Invalid Image: Confidence too low. Please upload a valid Brain MRI scan.")
+                    st.error("❌ Invalid Image: Low confidence. Please upload a valid Brain MRI scan.")
                     st.write(f"Confidence: {confidence:.2f}")
                 else:
                     if pred == 0:
