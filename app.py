@@ -5,25 +5,9 @@ from PIL import Image
 from xgboost import XGBClassifier
 
 # -------------------- PAGE CONFIG --------------------
-st.set_page_config(
-    page_title="Brain Stroke Detection",
-    page_icon="🧠",
-    layout="centered"
-)
+st.set_page_config(page_title="Stroke Prediction", layout="centered")
 
-# -------------------- TITLE --------------------
-st.title("🧠 Brain Stroke Detection App")
-st.markdown("Upload a **Brain MRI image** to predict stroke type")
-
-# -------------------- SIDEBAR --------------------
-st.sidebar.title("About")
-st.sidebar.info(
-    "This app uses an XGBoost model to detect stroke type.\n\n"
-    "Classes:\n"
-    "- Hemorrhagic Stroke\n"
-    "- Ischemic Stroke\n\n"
-    "⚠️ Demo project (not medical use)"
-)
+st.title("🧠 Hybrid XGBoost for Brain Stroke Prediction")
 
 # -------------------- LOAD MODEL --------------------
 @st.cache_resource
@@ -34,86 +18,76 @@ def load_model():
 
 model = load_model()
 
-# -------------------- STRONG VALIDATION --------------------
+# -------------------- IMAGE VALIDATION --------------------
 def is_valid_mri(img):
+    """
+    Heuristic checks to filter non-brain / invalid images
+    """
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     mean_intensity = np.mean(gray)
     std_intensity = np.std(gray)
 
-    # Edge detection (structure check)
-    edges = cv2.Canny(gray, 100, 200)
-    edge_density = np.mean(edges)
-
-    # Circular structure approximation (brain shape tendency)
-    h, w = gray.shape
-    center_region = gray[h//4:3*h//4, w//4:3*w//4]
-    center_mean = np.mean(center_region)
-
-    # Heuristics
-    if std_intensity < 15:
+    # Too flat → likely not MRI
+    if std_intensity < 10:
         return False
 
-    if edge_density < 5:
+    # Too dark or too bright
+    if mean_intensity < 20 or mean_intensity > 230:
         return False
 
-    if mean_intensity < 30 or mean_intensity > 220:
-        return False
+    # Check edge density (MRI has structural edges)
+    edges = cv2.Canny(gray, 50, 150)
+    edge_density = np.sum(edges) / (gray.shape[0] * gray.shape[1])
 
-    if center_mean < 20:
+    if edge_density < 0.01:
         return False
 
     return True
 
-# -------------------- FILE UPLOAD --------------------
-file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
+# -------------------- UPLOAD --------------------
+file = st.file_uploader("Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
-# -------------------- MAIN LOGIC --------------------
 if file is not None:
-    try:
-        img = Image.open(file).convert("RGB")
-        st.image(img, caption="Uploaded Image", use_container_width=True)
 
-        img = np.array(img)
-        img = cv2.resize(img, (64, 64))
+    img = Image.open(file).convert("RGB")
+    st.image(img, caption="Uploaded Image", use_container_width=True)
 
-        # -------------------- VALIDATION --------------------
-        if not is_valid_mri(img):
-            st.error("❌ Invalid Image: Not a Brain MRI")
-        else:
-            pixel_features = img.flatten()
+    img = np.array(img)
+    img = cv2.resize(img, (64, 64))
 
-            mean = np.mean(img)
-            std = np.std(img)
-            maxv = np.max(img)
-            minv = np.min(img)
+    # -------------------- VALIDATION STEP --------------------
+    if not is_valid_mri(img):
+        st.error("❌ Invalid Image: Not a valid Brain MRI scan")
+    else:
+        # -------------------- FEATURE EXTRACTION --------------------
+        img_norm = img / 255.0
 
-            features = np.hstack([pixel_features, mean, std, maxv, minv])
-            features = features.reshape(1, -1)
+        pixel_features = img_norm.flatten()
 
-            if st.button("🔍 Predict"):
+        mean = np.mean(img_norm)
+        std = np.std(img_norm)
+        maxv = np.max(img_norm)
+        minv = np.min(img_norm)
 
-                proba = model.predict_proba(features)
-                sorted_probs = np.sort(proba[0])[::-1]
+        features = np.hstack([pixel_features, mean, std, maxv, minv])
+        features = features.reshape(1, -1)
 
-                confidence = float(sorted_probs[0])
-                gap = sorted_probs[0] - sorted_probs[1]
+        # -------------------- PREDICTION --------------------
+        if st.button("Predict"):
 
-                # -------------------- STRICT FILTER --------------------
-                if confidence < 0.95 or gap < 0.2:
-                    st.error("❌ Uncertain or invalid prediction. Upload a clearer Brain MRI.")
-                    st.write(f"Confidence: {confidence:.2f}")
-                    st.write(f"Probability gap: {gap:.2f}")
+            proba = model.predict_proba(features)
+            confidence = float(np.max(proba))
+            pred = int(np.argmax(proba))
+
+            # Confidence threshold
+            if confidence < 0.80:
+                st.error("❌ Low confidence. Image may be invalid or unclear.")
+                st.write(f"Confidence: {confidence:.2f}")
+            else:
+                if pred == 0:
+                    st.error("⚠️ Hemorrhagic Stroke Detected")
                 else:
-                    pred = int(np.argmax(proba))
+                    st.success("✅ Ischemic Stroke Detected")
 
-                    if pred == 0:
-                        st.error("⚠️ Hemorrhagic Stroke Detected")
-                    else:
-                        st.success("✅ Ischemic Stroke Detected")
-
-                    st.write(f"Confidence: {confidence:.2f}")
-                    st.write(f"Probability gap: {gap:.2f}")
-
-    except Exception as e:
-        st.error(f"❌ Error processing image: {e}")
+                st.write(f"Confidence: {confidence:.2f}")
