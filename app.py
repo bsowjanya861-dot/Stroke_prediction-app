@@ -6,13 +6,13 @@ from xgboost import XGBClassifier
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
-    page_title="Brain Stroke Detection",
+    page_title="Brain Stroke Prediction",
     page_icon="🧠",
     layout="centered"
 )
 
 # -------------------- TITLE --------------------
-st.title("🧠 Brain Stroke Detection App")
+st.title("🧠 Brain Stroke Prediction")
 st.markdown("Upload a **Brain MRI image** to predict stroke type")
 
 # -------------------- SIDEBAR --------------------
