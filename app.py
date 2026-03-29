@@ -4,11 +4,26 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 
-# -------------------- CONFIG --------------------
-st.set_page_config(page_title="Brain Stroke Detection", layout="centered")
+# -------------------- PAGE CONFIG --------------------
+st.set_page_config(
+    page_title="Brain Stroke Detection",
+    page_icon="🧠",
+    layout="centered"
+)
 
-st.title("🧠 Brain Stroke Detection")
-st.write("Upload Brain MRI Image")
+# -------------------- TITLE --------------------
+st.title("🧠 Brain Stroke Detection App")
+st.markdown("Upload a **Brain MRI image** to predict stroke type")
+
+# -------------------- SIDEBAR --------------------
+st.sidebar.title("About")
+st.sidebar.info(
+    "This app uses an XGBoost model to detect stroke type.\n\n"
+    "Classes:\n"
+    "- Hemorrhagic Stroke\n"
+    "- Ischemic Stroke\n\n"
+    "⚠️ Demo only (not medical use)"
+)
 
 # -------------------- LOAD MODEL --------------------
 @st.cache_resource
@@ -19,58 +34,72 @@ def load_model():
 
 model = load_model()
 
-# -------------------- UPLOAD --------------------
-file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+# -------------------- FILE UPLOAD --------------------
+file = st.file_uploader("📤 Upload Brain MRI Image", type=["jpg", "png", "jpeg"])
 
+# -------------------- MAIN LOGIC --------------------
 if file is not None:
-    img = Image.open(file).convert("RGB")
-    st.image(img, caption="Uploaded Image", use_container_width=True)
+    try:
+        # Read image
+        img = Image.open(file).convert("RGB")
+        st.image(img, caption="Uploaded Image", use_container_width=True)
 
-    img = np.array(img)
+        # Convert to array
+        img = np.array(img)
 
-    # -------------------- BASIC VALIDATION --------------------
-    if img is None:
-        st.error("❌ Invalid image file")
-        st.stop()
+        # Safety check
+        if img is None:
+            st.error("❌ Invalid image file")
+            st.stop()
 
-    # Resize
-    img = cv2.resize(img, (64, 64))
+        # Resize (same as training)
+        img = cv2.resize(img, (64, 64))
 
-    # Normalize
-    img = img / 255.0
+        # Normalize
+        img = img / 255.0
 
-    # -------------------- IMAGE ANALYSIS --------------------
-    mean = np.mean(img)
-    std = np.std(img)
+        # -------------------- IMAGE VALIDATION --------------------
+        mean_val = np.mean(img)
+        std_val = np.std(img)
 
-    # 🚨 Reject clearly wrong images
-    if mean < 0.05 or mean > 0.95:
-        st.error("❌ Invalid Image (Lighting issue / not MRI)")
-        st.stop()
+        # Reject very dark/bright images
+        if mean_val < 0.05 or mean_val > 0.95:
+            st.error("❌ Invalid Image (Lighting issue / Not MRI)")
+            st.stop()
 
-    if std < 0.05:
-        st.error("❌ Invalid Image (Too plain / not MRI)")
-        st.stop()
+        # Reject flat images
+        if std_val < 0.05:
+            st.error("❌ Invalid Image (Too plain / Not MRI)")
+            st.stop()
 
-    # -------------------- FEATURE EXTRACTION --------------------
-    features = img.flatten()
-    features = features.reshape(1, -1)
+        # -------------------- FEATURE EXTRACTION (IMPORTANT FIX) --------------------
+        pixel_features = img.flatten()
 
-    # -------------------- PREDICT --------------------
-    if st.button("🔍 Predict"):
+        mean = np.mean(img)
+        std = np.std(img)
+        maxv = np.max(img)
+        minv = np.min(img)
 
-        proba = model.predict_proba(features)
-        confidence = float(np.max(proba))
-        pred = int(np.argmax(proba))
+        features = np.hstack([pixel_features, mean, std, maxv, minv])
+        features = features.reshape(1, -1)
 
-        # 🚨 Strong rejection rule
-        if confidence < 0.85:
-            st.error("❌ Invalid Image (Not a Brain MRI)")
-        
-        else:
-            if pred == 0:
-                st.error("⚠️ Hemorrhagic Stroke Detected")
+        # -------------------- PREDICTION --------------------
+        if st.button("🔍 Predict"):
+
+            proba = model.predict_proba(features)
+            confidence = float(np.max(proba))
+            pred = int(np.argmax(proba))
+
+            # Strong validation
+            if confidence < 0.85:
+                st.error("❌ Invalid Image (Not a Brain MRI)")
             else:
-                st.success("✅ Ischemic Stroke Detected")
+                if pred == 0:
+                    st.error("⚠️ Hemorrhagic Stroke Detected")
+                else:
+                    st.success("✅ Ischemic Stroke Detected")
 
-            st.write(f"Confidence: {confidence:.2f}")
+                st.write(f"Confidence: {confidence:.2f}")
+
+    except Exception as e:
+        st.error(f"❌ Error processing image: {e}")
