@@ -3,22 +3,6 @@ import numpy as np
 import cv2
 from PIL import Image
 from xgboost import XGBClassifier
-def set_bg():
-    url = "https://images.unsplash.com/photo-1580281657527-47a4c5a3c3a4"
-    css = f"""
-    <style>
-    .stApp {{
-        background-image: url("{url}");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-    }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
-
-set_bg()
-
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="Brain Stroke Prediction",
