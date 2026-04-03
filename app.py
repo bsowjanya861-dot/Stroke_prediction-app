@@ -9,12 +9,20 @@ st.set_page_config(
     page_icon="🧠",
     layout="centered"
 ) 
+
 def set_background():
     st.markdown(
         """
         <style>
         .stApp {
-            background-color: #0e1117;
+            background-color: #87CEEB;  /* light sky blue */
+        }
+
+        /* Optional: make main content area slightly transparent for better readability */
+        .block-container {
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 2rem;
+            border-radius: 10px;
         }
         </style>
         """,
