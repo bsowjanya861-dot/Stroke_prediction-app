@@ -2,47 +2,7 @@ import streamlit as st
 import numpy as np
 import cv2
 from PIL import Image
-from xgboost import XGBClassifier
-import streamlit as st
-
-import streamlit as st
-
-st.set_page_config(layout="wide")
-
-def set_background():
-    st.markdown(
-        """
-        <style>
-        /* Full page background */
-        html, body, .stApp {
-            background-color: #E6E6FA;  /* light violet */
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Remove default Streamlit padding */
-        .block-container {
-            padding-top: 2rem;
-            padding-left: 2rem;
-            padding-right: 2rem;
-            max-width: 100%;
-        }
-
-        /* Ensure main container also fills background */
-        [data-testid="stAppViewContainer"] {
-            background-color: #E6E6FA;
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-set_background()
-
-
-    
+from xgboost import XGBClassifier 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="Brain Stroke Prediction",
@@ -62,8 +22,27 @@ st.sidebar.info(
     "Classes:\n"
     "- Hemorrhagic Stroke\n"
     "- Ischemic Stroke\n\n"
-    "⚠️ This is a demo project (not for medical use)"
-)
+) 
+#---------------background-color-------------------
+def set_background():
+    st.markdown(
+        """
+        <style>
+        /* Force full page background */
+        .stApp {
+            background-color: #E6E6FA !important;
+        }
+
+        /* Remove any white gaps */
+        html, body {
+            background-color: #E6E6FA !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+set_background()
 
 # -------------------- LOAD MODEL --------------------
 @st.cache_resource
