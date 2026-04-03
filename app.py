@@ -9,10 +9,16 @@ def set_background():
     st.markdown(
         """
         <style>
-        .stApp {
-            background-color: #E6E6FA;  /* light violet (lavender) */
+        html, body, .stApp {
+            height: 100%;
+            background-color: #E6E6FA;  /* light violet */
         }
 
+        .stApp {
+            min-height: 100vh;
+        }
+
+        /* Optional: make content readable */
         .block-container {
             background-color: rgba(255, 255, 255, 0.80);
             padding: 2rem;
