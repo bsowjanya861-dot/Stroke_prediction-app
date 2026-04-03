@@ -4,7 +4,7 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 def set_bg():
-    url = "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b"  # replace with your image link
+    url = "https://media.istockphoto.com/id/2152914607/photo/medical-3d-illustration-of-a-man-with-stroke-symptoms.jpg"  # replace with your image link
 
     css = f"""
     <style>
