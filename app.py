@@ -4,7 +4,7 @@ import cv2
 from PIL import Image
 from xgboost import XGBClassifier
 def set_bg():
-    url = "https://images.unsplash.com/photo-1581594693702-fbdc51b2763b"
+    url = "https://www.freepik.com/free-photo/male-medical-figure-with-front-brain-highlighted_7061148.htm#fromView=search&page=1&position=9&uuid=8fde00bb-fd84-4773-b191-cc8f95c1fef5&query=Brain+stroke+not+thick"
     css = f"""
     <style>
     .stApp {{
