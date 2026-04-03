@@ -8,7 +8,20 @@ st.set_page_config(
     page_title="Brain Stroke Prediction",
     page_icon="🧠",
     layout="centered"
-)
+) 
+def set_background():
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-color: #0e1117;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+set_background()
 
 
 # -------------------- TITLE --------------------
