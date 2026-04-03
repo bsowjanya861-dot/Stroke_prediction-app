@@ -17,6 +17,16 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+st.markdown(
+    """
+    <style>
+    .block-container {
+        max-width: 100% !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="Brain Stroke Prediction",
