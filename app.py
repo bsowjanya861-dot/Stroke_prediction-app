@@ -3,12 +3,20 @@ import numpy as np
 import cv2
 from PIL import Image
 from xgboost import XGBClassifier
+import streamlit as st
+
 def set_background():
     st.markdown(
         """
         <style>
         .stApp {
-            background: linear-gradient(to right, #1e3c72, #2a5298);
+            background-color: #E6E6FA;  /* light violet (lavender) */
+        }
+
+        .block-container {
+            background-color: rgba(255, 255, 255, 0.80);
+            padding: 2rem;
+            border-radius: 10px;
         }
         </style>
         """,
