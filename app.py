@@ -9,6 +9,117 @@ st.set_page_config(
     page_icon="🧠",
     layout="centered"
 )
+# ---------- Helper Functions ----------
+
+def hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return np.array([int(hex_color[i:i+2], 16) for i in (0, 2, 4)]) / 255.0
+
+
+def apply_rgb_curves(image, r_curve, g_curve, b_curve):
+    x = np.linspace(0, 1, len(r_curve))
+
+    r = np.interp(image[:,:,0], x, r_curve)
+    g = np.interp(image[:,:,1], x, g_curve)
+    b = np.interp(image[:,:,2], x, b_curve)
+
+    return np.stack([r, g, b], axis=-1)
+
+
+def apply_adjustments(image, brightness, contrast, saturation):
+    img = image.astype(np.float32) / 255.0
+
+    # Brightness
+    img = np.clip(img + brightness, 0, 1)
+
+    # Contrast
+    img = np.clip(img + contrast * (img - 0.5), 0, 1)
+
+    # Saturation
+    gray = np.dot(img, [0.299, 0.587, 0.114])
+    img = gray[:, :, None] + (img - gray[:, :, None]) * saturation
+
+    return np.clip(img, 0, 1)
+
+
+def apply_temperature(image, temp):
+    R, G, B = image[:,:,0], image[:,:,1], image[:,:,2]
+
+    if temp > 0:
+        R *= (1 + temp)
+        B /= (1 + temp)
+    else:
+        B *= (1 - temp)
+        R /= (1 - temp)
+
+    return np.stack([R, G, B], axis=-1)
+
+
+def apply_vignette(image, amount):
+    h, w = image.shape[:2]
+    X, Y = np.meshgrid(np.arange(w), np.arange(h))
+    cx, cy = w / 2, h / 2
+
+    r = np.sqrt((X - cx)**2 + (Y - cy)**2)
+    mask = np.exp(-(r**2) / (0.5 * w)**2)
+    mask = mask[:, :, None]
+
+    return image * (1 - amount) + image * mask * amount
+
+
+# ---------- Presets ----------
+
+presets = {
+    "None": {"brightness":0.0,"contrast":0.0,"saturation":1.0,"temperature":0.0},
+    "Vintage": {"brightness":0.2,"contrast":-0.1,"saturation":0.9,"temperature":0.25},
+    "Moody": {"brightness":0.1,"contrast":0.2,"saturation":1.1,"temperature":-0.2}
+}
+
+# ---------- UI ----------
+
+st.title("Simple Color Grading App")
+
+uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+
+if uploaded_file:
+
+    # Load image
+    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+    image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    # Preset selection
+    preset = st.sidebar.selectbox("Preset", list(presets.keys()))
+    preset_vals = presets[preset]
+
+    # Sliders
+    brightness = st.sidebar.slider("Brightness", -1.0, 1.0, preset_vals["brightness"])
+    contrast = st.sidebar.slider("Contrast", -1.0, 1.0, preset_vals["contrast"])
+    saturation = st.sidebar.slider("Saturation", 0.0, 2.0, preset_vals["saturation"])
+    temperature = st.sidebar.slider("Temperature", -1.0, 1.0, preset_vals["temperature"])
+    vignette = st.sidebar.slider("Vignette", 0.0, 1.0, 0.0)
+
+    # RGB Curves (simple fixed 3-point curves)
+    red_curve = [0.0, 0.5, 1.0]
+    green_curve = [0.0, 0.5, 1.0]
+    blue_curve = [0.0, 0.5, 1.0]
+
+    # Processing pipeline
+    img = apply_adjustments(image, brightness, contrast, saturation)
+    img = apply_temperature(img, temperature)
+    img = apply_vignette(img, vignette)
+    img = apply_rgb_curves(img, red_curve, green_curve, blue_curve)
+
+    # Display
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.header("Original")
+        st.image(image)
+
+    with col2:
+        st.header("Processed")
+        st.image((img * 255).astype(np.uint8))
 
 # -------------------- TITLE --------------------
 st.title("🧠 Brain Stroke Prediction")
