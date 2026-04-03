@@ -3,30 +3,30 @@ import numpy as np
 import cv2
 from PIL import Image
 from xgboost import XGBClassifier
+import streamlit as st
+
+def set_background():
+    st.markdown(
+        """
+        <style>
+        /* Force full page background */
+        .stApp {
+            background-color: #E6E6FA !important;
+        }
+
+        /* Remove any white gaps */
+        html, body {
+            background-color: #E6E6FA !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+set_background()
 
 
-st.set_page_config(layout="wide")
-
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #E6E6FA;  /* light violet */
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-st.markdown(
-    """
-    <style>
-    .block-container {
-        max-width: 100% !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+    
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="Brain Stroke Prediction",
