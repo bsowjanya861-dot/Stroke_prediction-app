@@ -5,19 +5,35 @@ from PIL import Image
 from xgboost import XGBClassifier
 import streamlit as st
 
+import streamlit as st
+
+st.set_page_config(layout="wide")
+
 def set_background():
     st.markdown(
         """
         <style>
-        /* Force full page background */
-        .stApp {
-            background-color: #E6E6FA !important;
+        /* Full page background */
+        html, body, .stApp {
+            background-color: #E6E6FA;  /* light violet */
+            height: 100%;
+            margin: 0;
+            padding: 0;
         }
 
-        /* Remove any white gaps */
-        html, body {
-            background-color: #E6E6FA !important;
+        /* Remove default Streamlit padding */
+        .block-container {
+            padding-top: 2rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
+            max-width: 100%;
         }
+
+        /* Ensure main container also fills background */
+        [data-testid="stAppViewContainer"] {
+            background-color: #E6E6FA;
+        }
+
         </style>
         """,
         unsafe_allow_html=True
